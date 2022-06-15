@@ -1,0 +1,117 @@
+﻿@page "/fetchdata"
+
+<PageTitle>Weather forecast</PageTitle>
+
+@using BlazorServerAppExample.Data
+@using System.Timers
+@inject WeatherForecastService ForecastService
+
+<h1>Fetching weather data from a service</h1>
+
+<p>This component demonstrates fetching weather data from a service.</p>
+
+<div class="form-control">
+    <input type="text" @bind="_cityOrCountryname"  @onkeyup="@Enter" placeholder="Type a country or city name"/>
+    <button @onclick="SearchByCity">Send</button>
+</div>
+@if (_isLoading)
+{
+    <div class="progress m-2">
+        <div class="progress-bar" role="progressbar" style="width: @_counter%;" aria-valuenow="@_counter" aria-valuemin="0" aria-valuemax="100">@_counter%</div>
+    </div>
+}
+<div class="mt-2">
+    @if (_weatherData != null && _isLoading == false)
+    {
+        <div class="alert alert-primary" role="alert">
+            <p>
+                City or Country: @_weatherData.Title <br />
+                Temperature: @_weatherData.Main.Temperature °C | @_weatherData.Main.TemperatureF °F
+            </p>
+
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>Visibility</th>
+                        <th>Description</th>
+                        <th>Icon</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in _weatherData.Weather)
+                    {
+                        <tr>
+                            <td>@item.Id</td>
+                            <td>@item.Visibility</td>
+                            <td>@item.Description</td>
+                            <td><img width="50" src="@item.IconFullUrl"/></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-primary" role="alert"> @_messagealert</div>
+    }
+</div>
+
+
+@code {
+    private WeatherData? _weatherData;
+    private string? _cityOrCountryname;
+    private bool _isLoading = false;
+    private int _counter;
+    private string? _messagealert;
+    private const int _timerInterval = 100;
+
+    private static System.Timers.Timer s_Timer;
+    protected async Task SearchByCity()
+    {
+        var homework = ForecastService.GetWeatherData(_cityOrCountryname);
+
+        s_Timer = new System.Timers.Timer(_timerInterval);
+        s_Timer.Elapsed += new ElapsedEventHandler(ProgressBarCounter);
+        s_Timer.Start();
+
+        _isLoading = true;
+
+        if (homework.Status == TaskStatus.Faulted)
+            _messagealert = homework.Exception?.InnerException?.Message;
+        else
+        {
+            _messagealert = (_weatherData = await homework) is null 
+            ? $"{_cityOrCountryname} it is not a valid country or city."
+            : "Wait a moment please.";
+        }
+       
+        if (homework.Status == TaskStatus.Faulted || _weatherData == null) ResetValues();
+    }
+
+    protected void ProgressBarCounter(Object source, System.Timers.ElapsedEventArgs e)
+    {
+        if (_counter == _timerInterval) ResetValues();
+
+        InvokeAsync(StateHasChanged);
+        _counter++;
+    }
+    
+    private void ResetValues()
+    {
+        _isLoading = false;
+        s_Timer.Stop();
+        _counter = 0;
+    }
+
+    protected async Task Enter(KeyboardEventArgs e)
+    {
+        if (e.Code == "Enter" || e.Code == "NumpadEnter")
+        {
+            await SearchByCity();
+        }
+    }
+}
+
+    
