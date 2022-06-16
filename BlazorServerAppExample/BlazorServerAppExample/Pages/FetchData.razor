@@ -60,14 +60,14 @@
 
 
 @code {
-    private WeatherData? _weatherData;
-    private string? _cityOrCountryname;
+        private WeatherData? _weatherData;
+    private string? _cityOrCountryname = null;
     private bool _isLoading = false;
     private int _counter;
-    private string? _messagealert;
+    private (string messagealert, string classalert) _messageAndClassAlert;
     private const int _timerInterval = 100;
-
     private static System.Timers.Timer s_Timer;
+
     protected async Task SearchByCity()
     {
         var homework = ForecastService.GetWeatherData(_cityOrCountryname);
@@ -79,15 +79,16 @@
         _isLoading = true;
 
         if (homework.Status == TaskStatus.Faulted)
-            _messagealert = homework.Exception?.InnerException?.Message;
+        {
+            _messageAndClassAlert = (homework.Exception?.InnerException?.Message ?? "Error", "danger");
+            _weatherData = null;
+            ResetValues();
+        }
         else
         {
-            _messagealert = (_weatherData = await homework) is null 
-            ? $"{_cityOrCountryname} it is not a valid country or city."
-            : "Wait a moment please.";
+            _messageAndClassAlert = (_weatherData = await homework) is null ? ($"{_cityOrCountryname} it is not a valid country or city.", "danger")
+                                                                            : ("Wait a moment please...", "primary");
         }
-       
-        if (homework.Status == TaskStatus.Faulted || _weatherData == null) ResetValues();
     }
 
     protected void ProgressBarCounter(Object source, System.Timers.ElapsedEventArgs e)
